@@ -382,6 +382,7 @@ class Trainer3DGRUT:
         Returns:
             losses: dictionary of loss terms computed for current batch.
         """
+        # mask here
         rgb_gt = gpu_batch.rgb_gt
         rgb_pred = outputs["pred_rgb"]
 
