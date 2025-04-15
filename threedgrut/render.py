@@ -183,6 +183,11 @@ class Renderer:
 
             pred_rgb_full = outputs["pred_rgb"]
             rgb_gt_full = gpu_batch.rgb_gt
+            # mask = gpu_batch.mask
+            # # Mask out the invalid pixels if the mask is provided
+            # if mask is not None:
+            #     rgb_gt_full = rgb_gt_full * mask
+            #     pred_rgb_full = pred_rgb_full * mask
 
             # The values are already alpha composited with the background
             torchvision.utils.save_image(
