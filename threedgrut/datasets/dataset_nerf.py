@@ -165,9 +165,9 @@ class NeRFDataset(Dataset, BoundedMultiViewDataset, DatasetVisualization):
         pose = batch["pose"][0].to(self.device, non_blocking=True)
         assert data.dtype == torch.float32
         assert pose.dtype == torch.float32
-
         sample = {
             "rgb_gt": data,
+            "mask": None,
             "rays_ori": self.rays_o_cam,
             "rays_dir": self.rays_d_cam,
             "T_to_world": pose,

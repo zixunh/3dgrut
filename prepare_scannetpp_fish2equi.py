@@ -47,6 +47,7 @@ def colmap_main(args):
     
     width_org = np.copy(width)
     height_org =  np.copy(height)
+    # NOTE: this focal length should be corresponding to the fov in ./threedgrut/datasets/dataset_colmap.py
     fx_tgt = fx * 0.85
     fy_tgt = fy * 0.85
     

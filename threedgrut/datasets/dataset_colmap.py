@@ -96,8 +96,10 @@ class ColmapDataset(Dataset, BoundedMultiViewDataset, DatasetVisualization):
         self.image_h = 0
         self.image_w = 0
         self.n_frames = len(self.cam_extrinsics)
-        image_path = os.path.join(self.path, self.get_images_folder(), os.path.basename(self.cam_extrinsics[0].name))
-        image = np.asarray(Image.open(image_path))
+        image_path = os.path.join(self.path, self.get_images_folder(), os.path.basename(self.cam_extrinsics[0].name)).replace(".JPG", ".png")
+        image = np.asarray(Image.open(image_path))[..., :3]
+        # mask = np.asarray(Image.open(image_path))[..., 3:4]
+        
         self.image_h = image.shape[0]
         self.image_w = image.shape[1]
         self.scaling_factor = int(
@@ -135,7 +137,7 @@ class ColmapDataset(Dataset, BoundedMultiViewDataset, DatasetVisualization):
         def create_fisheye_camera(params):
             resolution = np.array([self.image_w, self.image_h]).astype(np.int64)
             principal_point = params[2:4].astype(np.float32)
-            focal_length = params[0:2].astype(np.float32)
+            focal_length = params[0:2].astype(np.float32) * 0.85 # NOTE: full fov eq-image from prepare_scannetpp_fish2equi.py
             radial_coeffs = params[4:].astype(np.float32)
             # Estimate max angle for fisheye
             max_radius_pixels = compute_max_radius(resolution.astype(np.float64), principal_point)
@@ -202,7 +204,7 @@ class ColmapDataset(Dataset, BoundedMultiViewDataset, DatasetVisualization):
             C2W = np.linalg.inv(W2C)
             self.poses.append(C2W)
             cam_centers.append(C2W[:3, 3])
-            image_path = os.path.join(self.path, self.get_images_folder(), os.path.basename(extr.name))
+            image_path = os.path.join(self.path, self.get_images_folder(), os.path.basename(extr.name)).replace(".JPG", ".png")
             self.image_paths.append(image_path)
 
         self.camera_centers = np.array(cam_centers)
@@ -245,11 +247,13 @@ class ColmapDataset(Dataset, BoundedMultiViewDataset, DatasetVisualization):
 
     def __getitem__(self, idx) -> dict:
         out_shape = (1, self.image_h, self.image_w, 3)
+        out_shape_mask = (1, self.image_h, self.image_w, 1)
         image_data = np.asarray(Image.open(self.image_paths[idx]))
         assert image_data.dtype == np.uint8, "Image data must be of type uint8"
 
         return {
-            "data": torch.tensor(image_data).reshape(out_shape),
+            "data": torch.tensor(image_data[..., :3]).reshape(out_shape),
+            "mask": torch.tensor(image_data[..., 3:4]).reshape(out_shape_mask),
             "pose": torch.tensor(self.poses[idx]).unsqueeze(0),
             "intr": self.get_intrinsics_idx(idx),
         }
@@ -258,15 +262,17 @@ class ColmapDataset(Dataset, BoundedMultiViewDataset, DatasetVisualization):
         """Add the intrinsics to the batch and move data to GPU."""
 
         data = batch["data"][0].to(self.device, non_blocking=True) / 255.0
+        mask = batch["mask"][0].to(self.device, non_blocking=True) / 255.0
         pose = batch["pose"][0].to(self.device, non_blocking=True)
         intr = batch["intr"][0].item()
         assert data.dtype == torch.float32
         assert pose.dtype == torch.float32
 
         camera_params_dict, rays_ori, rays_dir, camera_name = self.intrinsics[intr]
-
+        # print(data.shape, rays_ori.shape, rays_dir.shape, camera_params_dict, '\n')
         sample = {
             "rgb_gt": data,
+            "mask": mask,
             "rays_ori": rays_ori,
             "rays_dir": rays_dir,
             "T_to_world": pose,

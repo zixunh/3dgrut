@@ -183,11 +183,11 @@ class Renderer:
 
             pred_rgb_full = outputs["pred_rgb"]
             rgb_gt_full = gpu_batch.rgb_gt
-            # mask = gpu_batch.mask
-            # # Mask out the invalid pixels if the mask is provided
-            # if mask is not None:
-            #     rgb_gt_full = rgb_gt_full * mask
-            #     pred_rgb_full = pred_rgb_full * mask
+            mask = gpu_batch.mask
+            # Mask out the invalid pixels if the mask is provided
+            if mask is not None:
+                rgb_gt_full = rgb_gt_full * mask
+                pred_rgb_full = pred_rgb_full * mask
 
             # The values are already alpha composited with the background
             torchvision.utils.save_image(
@@ -207,7 +207,10 @@ class Renderer:
                 )
 
             # Compute the loss
-            psnr_single_img = criterions["psnr"](outputs["pred_rgb"], gpu_batch.rgb_gt).item()
+            if mask is not None:
+                psnr_single_img = criterions["psnr"](outputs["pred_rgb"] * mask, gpu_batch.rgb_gt * mask).item()
+            else:
+                psnr_single_img = criterions["psnr"](outputs["pred_rgb"], gpu_batch.rgb_gt).item()
             psnr.append(psnr_single_img)  # evaluation on valid rays only
             logger.info(f"Frame {iteration}, PSNR: {psnr[-1]}")
 

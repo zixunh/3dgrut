@@ -35,4 +35,5 @@ class ScannetppDataset(ColmapDataset):
             intr.params[4:] = 0.0
 
     def get_images_folder(self):
-        return "image_undistorted_fisheye"
+        # return "image_undistorted_fisheye"
+        return "images_equidist"

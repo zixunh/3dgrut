@@ -324,6 +324,11 @@ class Trainer3DGRUT:
 
         rgb_gt = gpu_batch.rgb_gt
         rgb_pred = outputs["pred_rgb"]
+        mask = gpu_batch.mask
+        # Mask out the invalid pixels if the mask is provided
+        if mask is not None:
+            rgb_gt = rgb_gt * mask
+            rgb_pred = rgb_pred * mask
 
         psnr = self.criterions["psnr"]
         ssim = self.criterions["ssim"]
@@ -382,7 +387,6 @@ class Trainer3DGRUT:
         Returns:
             losses: dictionary of loss terms computed for current batch.
         """
-        # mask here
         rgb_gt = gpu_batch.rgb_gt
         rgb_pred = outputs["pred_rgb"]
         mask = gpu_batch.mask
