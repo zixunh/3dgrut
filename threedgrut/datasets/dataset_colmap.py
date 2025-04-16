@@ -195,6 +195,12 @@ class ColmapDataset(Dataset, BoundedMultiViewDataset, DatasetVisualization):
 
         cam_centers = []
         for extr in logger.track(self.cam_extrinsics, description=f"Load Dataset ({self.split})", color="salmon1"):
+            image_path = os.path.join(self.path, self.get_images_folder(), os.path.basename(extr.name)).replace(".JPG", ".png")
+            if not os.path.exists(image_path):
+                print(f"Image file {image_path} does not exist.")
+                continue
+            self.image_paths.append(image_path)
+
             R = qvec_to_so3(extr.qvec)
             T = np.array(extr.tvec)
             W2C = np.zeros((4, 4), dtype=np.float32)
@@ -204,8 +210,6 @@ class ColmapDataset(Dataset, BoundedMultiViewDataset, DatasetVisualization):
             C2W = np.linalg.inv(W2C)
             self.poses.append(C2W)
             cam_centers.append(C2W[:3, 3])
-            image_path = os.path.join(self.path, self.get_images_folder(), os.path.basename(extr.name)).replace(".JPG", ".png")
-            self.image_paths.append(image_path)
 
         self.camera_centers = np.array(cam_centers)
         _, diagonal = get_center_and_diag(self.camera_centers)
@@ -213,6 +217,9 @@ class ColmapDataset(Dataset, BoundedMultiViewDataset, DatasetVisualization):
 
         self.poses = np.stack(self.poses)
         self.image_paths = np.stack(self.image_paths, dtype=str)
+        print(f"{self.image_paths.shape[0]} images loaded from {self.path}/{self.get_images_folder()}")
+        self.n_frames = self.image_paths.shape[0] # update the number of frames
+
 
     @torch.no_grad()
     def compute_spatial_extents(self):

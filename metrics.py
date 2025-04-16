@@ -20,12 +20,15 @@ import json
 from tqdm import tqdm
 from utils.image_utils import psnr
 from argparse import ArgumentParser
+import glob
+import math
 
-def readImages(renders_dir, gt_dir):
+def readImages(renders_dir, gt_dir, renders_list, start, end):
     renders = []
     gts = []
     image_names = []
-    for fname in os.listdir(renders_dir):
+    for load_num in range(start, end):
+        fname = renders_list[load_num].rsplit("/")[-1]
         render = Image.open(renders_dir / fname)
         gt = Image.open(gt_dir / fname)
         renders.append(tf.to_tensor(render).unsqueeze(0)[:, :3, :, :].cuda())
@@ -33,7 +36,7 @@ def readImages(renders_dir, gt_dir):
         image_names.append(fname)
     return renders, gts, image_names
 
-def evaluate(model_paths, use_remap=False, apply_mask=False, cross_camera=False):
+def evaluate(model_paths, use_remap=False, iters=None, custom_gt=None):
 
     full_dict = {}
     per_view_dict = {}
@@ -42,18 +45,19 @@ def evaluate(model_paths, use_remap=False, apply_mask=False, cross_camera=False)
     print("")
 
     for scene_dir in model_paths:
-        # try:
+        #try:
         print("Scene:", scene_dir)
         full_dict[scene_dir] = {}
         per_view_dict[scene_dir] = {}
         full_dict_polytopeonly[scene_dir] = {}
         per_view_dict_polytopeonly[scene_dir] = {}
 
-        test_dir = Path(scene_dir) / "test"
+        test_dir = Path(scene_dir) #/ "test"
 
         for method in os.listdir(test_dir):
-            if method != "ours_30000":
-                continue
+            if iters is not None:
+                if str(iters) not in method:
+                    continue
             print("Method:", method)
 
             full_dict[scene_dir][method] = {}
@@ -64,29 +68,29 @@ def evaluate(model_paths, use_remap=False, apply_mask=False, cross_camera=False)
             method_dir = test_dir / method
             gt_dir = method_dir/ "gt"
             renders_dir = method_dir / "renders"
-            if cross_camera:
-                gt_dir = gt_dir.with_name(gt_dir.name + "_cross_camera")
-                renders_dir = renders_dir.with_name(renders_dir.name + "_cross_camera")        
             if use_remap:
+                print("Remapped back to original space.")
                 gt_dir = gt_dir.with_name(gt_dir.name + "_remap")
                 renders_dir = renders_dir.with_name(renders_dir.name + "_remap")
-                
-            
-            renders, gts, image_names = readImages(renders_dir, gt_dir)
-
+            if custom_gt is not None:
+                gt_dir = Path(custom_gt)
+                print("Custom GT loaded from", gt_dir)
+            renders_list = sorted(glob.glob(str(renders_dir / "*.png")))
+            num_rendered = len(renders_list)
+            # Split into every N image to prevent one-time load in too many image that may cause OOM.
+            N = 20
             ssims = []
             psnrs = []
             lpipss = []
+            image_namess = []
+            for i in range(math.ceil(num_rendered / N)):
+                renders, gts, image_names = readImages(renders_dir, gt_dir, renders_list, i*N, min(num_rendered, (i+1)*N))
+                image_namess.extend(image_names)
 
-            for idx in tqdm(range(len(renders)), desc="Metric evaluation progress"):
-                if apply_mask:
-                    mask = torch.logical_and(gts[idx][0:1, 0:1] > 0.0, torch.logical_and(gts[idx][0:1, 1:2] > 0.0, gts[idx][0:1, 2:3] > 0.0)).to(torch.float32)
-                    renders[idx] = renders[idx] * mask
-                else:
-                    mask = None
-                ssims.append(ssim(renders[idx], gts[idx], mask=mask))
-                psnrs.append(psnr(renders[idx], gts[idx], mask))
-                lpipss.append(lpips(renders[idx], gts[idx], net_type='vgg'))
+                for idx in tqdm(range(len(renders)), desc="Metric evaluation progress"):
+                    ssims.append(ssim(renders[idx], gts[idx]))
+                    psnrs.append(psnr(renders[idx], gts[idx]))
+                    lpipss.append(lpips(renders[idx], gts[idx], net_type='vgg'))
 
             print("  SSIM : {:>12.7f}".format(torch.tensor(ssims).mean(), ".5"))
             print("  PSNR : {:>12.7f}".format(torch.tensor(psnrs).mean(), ".5"))
@@ -96,20 +100,14 @@ def evaluate(model_paths, use_remap=False, apply_mask=False, cross_camera=False)
             full_dict[scene_dir][method].update({"SSIM": torch.tensor(ssims).mean().item(),
                                                     "PSNR": torch.tensor(psnrs).mean().item(),
                                                     "LPIPS": torch.tensor(lpipss).mean().item()})
-            per_view_dict[scene_dir][method].update({"SSIM": {name: ssim for ssim, name in zip(torch.tensor(ssims).tolist(), image_names)},
-                                                        "PSNR": {name: psnr for psnr, name in zip(torch.tensor(psnrs).tolist(), image_names)},
-                                                        "LPIPS": {name: lp for lp, name in zip(torch.tensor(lpipss).tolist(), image_names)}})
+            per_view_dict[scene_dir][method].update({"SSIM": {name: ssim for ssim, name in zip(torch.tensor(ssims).tolist(), image_namess)},
+                                                        "PSNR": {name: psnr for psnr, name in zip(torch.tensor(psnrs).tolist(), image_namess)},
+                                                        "LPIPS": {name: lp for lp, name in zip(torch.tensor(lpipss).tolist(), image_namess)}})
 
-        if cross_camera:
-            with open(scene_dir + "/results_cross_camera.json", 'w') as fp:
-                json.dump(full_dict[scene_dir], fp, indent=True)
-            with open(scene_dir + "/per_view_cross_camera.json", 'w') as fp:
-                json.dump(per_view_dict[scene_dir], fp, indent=True)
-        else:
-            with open(scene_dir + "/results.json", 'w') as fp:
-                json.dump(full_dict[scene_dir], fp, indent=True)
-            with open(scene_dir + "/per_view.json", 'w') as fp:
-                json.dump(per_view_dict[scene_dir], fp, indent=True)
+        with open(scene_dir + "/results.json", 'w') as fp:
+            json.dump(full_dict[scene_dir], fp, indent=True)
+        with open(scene_dir + "/per_view.json", 'w') as fp:
+            json.dump(per_view_dict[scene_dir], fp, indent=True)
         # except:
         #     print("Unable to compute metrics for model", scene_dir)
 
@@ -121,7 +119,7 @@ if __name__ == "__main__":
     parser = ArgumentParser(description="Training script parameters")
     parser.add_argument('--model_paths', '-m', required=True, nargs="+", type=str, default=[])
     parser.add_argument('--use_remap', action='store_true')
-    parser.add_argument('--apply_mask', action='store_true')
-    parser.add_argument('--cross_camera', '-c', action='store_true')
+    parser.add_argument('--iters', type=int, default = None)
+    parser.add_argument('--custom_gt', type=str, default=None)
     args = parser.parse_args()
-    evaluate(args.model_paths, args.use_remap, args.apply_mask, args.cross_camera)
+    evaluate(args.model_paths, args.use_remap, args.iters, args.custom_gt)
