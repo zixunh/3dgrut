@@ -1,5 +1,5 @@
-SCENE_ID=1f7cbbdde1
-OUTPUT_DIR=/workspace/runs/"$SCENE_ID"_3dgut/dslr-1604_063449
+SCENE_ID=4ef75031e3
+OUTPUT_DIR=/workspace/runs/"$SCENE_ID"_3dgut/dslr-1604_064548
 DATASET_DIR=/media/scannetpp/demo/$SCENE_ID/dslr
 ITERS_NUM=30000
 
