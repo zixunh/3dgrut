@@ -66,7 +66,9 @@ class Renderer:
                     conf.path, split="test", bg_color=conf.model.background.color
                 )
             case "colmap":
-                dataset = ColmapDataset(conf.path, split="val", downsample_factor=conf.dataset.downsample_factor)
+                if cross_camera:
+                    conf.path = conf.path.replace("undistorted", "fisheye")
+                dataset = ColmapDataset(conf.path, split="val", downsample_factor=conf.dataset.downsample_factor, cross_camera=cross_camera)
             case "scannetpp":
                 dataset = ScannetppDataset(conf.path, split="val")
             case "zipnerf_fisheye":

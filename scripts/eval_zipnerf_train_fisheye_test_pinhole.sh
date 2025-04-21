@@ -1,6 +1,5 @@
 SCENE_ID=nyc
 OUTPUT_DIR=/workspace/runs/zipnerf_fisheye_3dgut/"$SCENE_ID"/"$SCENE_ID"-2004_235332
-DATASET_DIR=data/zipnerf/fisheye/$SCENE_ID
 ITERS_NUM=30000
 
 # render cross camera

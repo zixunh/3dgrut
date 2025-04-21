@@ -60,7 +60,7 @@ class ZipnerfFisheyeDataset(ColmapDataset):
 
     def get_images_folder(self):
         downsample_suffix = "" if self.downsample_factor == 1 else f"_{self.downsample_factor}"
-        # return "image_undistorted_fisheye"
+        # cross_camera here only means train fisheye test pinhole
         if not self.cross_camera:
             return f"images{downsample_suffix}_equidist"
         else:

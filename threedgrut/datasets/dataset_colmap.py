@@ -81,17 +81,31 @@ class ColmapDataset(Dataset, BoundedMultiViewDataset, DatasetVisualization):
         try:
             cameras_extrinsic_file = os.path.join(self.path, "sparse/0", "images.bin")
             cameras_intrinsic_file = os.path.join(self.path, "sparse/0", "cameras.bin")
+            if self.cross_camera: # only for zipnerf case
+                if 'undistorted' in cameras_extrinsic_file:
+                    cameras_extrinsic_file = cameras_extrinsic_file.replace('undistorted', 'fisheye')
+                elif 'fisheye' in cameras_extrinsic_file:
+                    cameras_extrinsic_file = cameras_extrinsic_file.replace('fisheye', 'undistorted')
             self.cam_extrinsics = read_colmap_extrinsics_binary(cameras_extrinsic_file)
             self.cam_intrinsics = read_colmap_intrinsics_binary(cameras_intrinsic_file)
         except:
             cameras_extrinsic_file = os.path.join(self.path, "sparse/0", "images.txt")
             cameras_intrinsic_file = os.path.join(self.path, "sparse/0", "cameras.txt")
+            if self.cross_camera: # only for zipnerf case
+                if 'undistorted' in cameras_extrinsic_file:
+                    cameras_extrinsic_file = cameras_extrinsic_file.replace('undistorted', 'fisheye')
+                elif 'fisheye' in cameras_extrinsic_file:
+                    cameras_extrinsic_file = cameras_extrinsic_file.replace('fisheye', 'undistorted')
             self.cam_extrinsics = read_colmap_extrinsics_text(cameras_extrinsic_file)
             self.cam_intrinsics = read_colmap_intrinsics_text(cameras_intrinsic_file)
 
     def get_images_folder(self):
         downsample_suffix = "" if self.downsample_factor == 1 else f"_{self.downsample_factor}"
-        return f"images{downsample_suffix}"
+        # cross_camera here only means train pinhole test fisheye
+        if self.cross_camera:
+            return f"images{downsample_suffix}_equidist"
+        else:
+            return f"images{downsample_suffix}"
 
     def get_scene_info(self):
         self.image_h = 0
