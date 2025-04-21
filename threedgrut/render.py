@@ -70,7 +70,7 @@ class Renderer:
                 dataset = ZipnerfFisheyeDataset(conf.path, split="val", downsample_factor=conf.dataset.downsample_factor)
             case _:
                 raise ValueError(
-                    f'Unsupported dataset type: {conf.dataset.type}. Choose between: ["colmap", "nerf", "scannetpp", "zipnerf", "zipnerf_fisheye"].'
+                    f'Unsupported dataset type: {conf.dataset.type}. Choose between: ["colmap", "nerf", "scannetpp", "zipnerf_fisheye"].'
                 )
 
         dataloader = torch.utils.data.DataLoader(dataset, num_workers=8, batch_size=1, shuffle=False, collate_fn=None)

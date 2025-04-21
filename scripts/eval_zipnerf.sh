@@ -1,5 +1,5 @@
-SCENE_ID=alameda
-OUTPUT_DIR=/workspace/runs/zipnerf_3dgut/"$SCENE_ID"/"$SCENE_ID"-2104_034135
+SCENE_ID=nyc
+OUTPUT_DIR=/workspace/runs/zipnerf_3dgut/"$SCENE_ID"/"$SCENE_ID"-2104_050242
 DATASET_DIR=data/zipnerf/fisheye/$SCENE_ID
 ITERS_NUM=30000
 
