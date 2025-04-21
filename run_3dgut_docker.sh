@@ -1,1 +1,1 @@
-sudo docker exec -it 3dgut /bin/bash
+sudo docker exec -it 3dgrut /bin/bash

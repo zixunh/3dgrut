@@ -23,7 +23,7 @@ from torchmetrics import PeakSignalNoiseRatio
 from torchmetrics.image import StructuralSimilarityIndexMeasure
 from torchmetrics.image.lpip import LearnedPerceptualImagePatchSimilarity
 
-from threedgrut.datasets import NeRFDataset, ColmapDataset, ScannetppDataset
+from threedgrut.datasets import NeRFDataset, ColmapDataset, ScannetppDataset, ZipnerfFisheyeDataset
 from threedgrut.model.model import MixtureOfGaussians
 from threedgrut.utils.logger import logger
 from threedgrut.utils.misc import create_summary_writer
@@ -66,9 +66,11 @@ class Renderer:
                 dataset = ColmapDataset(conf.path, split="val", downsample_factor=conf.dataset.downsample_factor)
             case "scannetpp":
                 dataset = ScannetppDataset(conf.path, split="val")
+            case "zipnerf_fisheye":
+                dataset = ZipnerfFisheyeDataset(conf.path, split="val", downsample_factor=conf.dataset.downsample_factor)
             case _:
                 raise ValueError(
-                    f'Unsupported dataset type: {conf.dataset.type}. Choose between: ["colmap", "nerf", "scannetpp"].'
+                    f'Unsupported dataset type: {conf.dataset.type}. Choose between: ["colmap", "nerf", "scannetpp", "zipnerf", "zipnerf_fisheye"].'
                 )
 
         dataloader = torch.utils.data.DataLoader(dataset, num_workers=8, batch_size=1, shuffle=False, collate_fn=None)

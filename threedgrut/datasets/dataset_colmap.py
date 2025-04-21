@@ -96,7 +96,12 @@ class ColmapDataset(Dataset, BoundedMultiViewDataset, DatasetVisualization):
         self.image_h = 0
         self.image_w = 0
         self.n_frames = len(self.cam_extrinsics)
-        image_path = os.path.join(self.path, self.get_images_folder(), os.path.basename(self.cam_extrinsics[0].name)).replace(".JPG", ".png")
+        image_path = os.path.join(self.path, self.get_images_folder(), os.path.basename(self.cam_extrinsics[0].name))
+        if not os.path.exists(image_path):
+            if ".JPG" in image_path:
+                image_path = image_path.replace(".JPG", ".png")
+            elif ".png" in image_path:
+                image_path = image_path.replace(".png", ".JPG")        
         image = np.asarray(Image.open(image_path))[..., :3]
         # mask = np.asarray(Image.open(image_path))[..., 3:4]
         
@@ -137,7 +142,7 @@ class ColmapDataset(Dataset, BoundedMultiViewDataset, DatasetVisualization):
         def create_fisheye_camera(params):
             resolution = np.array([self.image_w, self.image_h]).astype(np.int64)
             principal_point = params[2:4].astype(np.float32)
-            focal_length = params[0:2].astype(np.float32) * 0.85 # NOTE: full fov eq-image from prepare_scannetpp_fish2equi.py
+            focal_length = params[0:2].astype(np.float32) #* 0.85 # NOTE: full fov eq-image from prepare_scannetpp_fish2equi.py
             radial_coeffs = params[4:].astype(np.float32)
             # Estimate max angle for fisheye
             max_radius_pixels = compute_max_radius(resolution.astype(np.float64), principal_point)
@@ -195,7 +200,12 @@ class ColmapDataset(Dataset, BoundedMultiViewDataset, DatasetVisualization):
 
         cam_centers = []
         for extr in logger.track(self.cam_extrinsics, description=f"Load Dataset ({self.split})", color="salmon1"):
-            image_path = os.path.join(self.path, self.get_images_folder(), os.path.basename(extr.name)).replace(".JPG", ".png")
+            image_path = os.path.join(self.path, self.get_images_folder(), os.path.basename(extr.name))
+            if not os.path.exists(image_path):
+                if ".JPG" in image_path:
+                    image_path = image_path.replace(".JPG", ".png")
+                elif ".png" in image_path:
+                    image_path = image_path.replace(".png", ".JPG")
             if not os.path.exists(image_path):
                 print(f"Image file {image_path} does not exist.")
                 continue
@@ -258,9 +268,16 @@ class ColmapDataset(Dataset, BoundedMultiViewDataset, DatasetVisualization):
         image_data = np.asarray(Image.open(self.image_paths[idx]))
         assert image_data.dtype == np.uint8, "Image data must be of type uint8"
 
+        if image_data.shape[2] == 4:
+            # If the image has an alpha channel, separate it
+            mask = torch.tensor(image_data[..., 3:4]).reshape(out_shape_mask)
+        else:
+            mask = np.ones((1, self.image_h, self.image_w, 1), dtype=np.uint8)*255
+            mask = torch.tensor(mask)
+
         return {
             "data": torch.tensor(image_data[..., :3]).reshape(out_shape),
-            "mask": torch.tensor(image_data[..., 3:4]).reshape(out_shape_mask),
+            "mask": mask,
             "pose": torch.tensor(self.poses[idx]).unsqueeze(0),
             "intr": self.get_intrinsics_idx(idx),
         }

@@ -138,6 +138,11 @@ python train.py --config-name apps/colmap_3dgut.yaml path=data/mipnerf360/bonsai
 
 # Train Scannet++
 python train.py --config-name apps/scannetpp_3dgut.yaml path=data/scannetpp/0a5c013435/dslr out_dir=runs experiment_name=0a5c013435_3dgut
+
+# Train Zipnerf
+python train.py --config-name apps/zipnerf_3dgut.yaml path=data/zipnerf/undistorted/alameda out_dir=runs/zipnerf_3dgut experiment_name=alameda dataset.downsample_factor=4
+
+python train.py --config-name apps/zipnerf_fisheye_3dgut.yaml path=data/zipnerf/fisheye/alameda out_dir=runs/zipnerf_fisheye_3dgut experiment_name=alameda dataset.downsample_factor=8
 ```
 
 > [!Note] 

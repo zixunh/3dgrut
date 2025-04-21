@@ -16,6 +16,7 @@
 from .dataset_nerf import NeRFDataset
 from .dataset_colmap import ColmapDataset
 from .dataset_scannetpp import ScannetppDataset
+from .dataset_zipnerf import ZipnerfFisheyeDataset
 
 
 def make(name: str, config, ray_jitter):
@@ -53,6 +54,30 @@ def make(name: str, config, ray_jitter):
             val_dataset = ScannetppDataset(
                 config.path,
                 split="val",
+            )
+        # case "zipnerf":
+        #     train_dataset = ZipnerfDataset(
+        #         config.path,
+        #         split="train",
+        #         ray_jitter=ray_jitter,
+        #         downsample_factor=config.dataset.downsample_factor,
+        #     )
+        #     val_dataset = ZipnerfDataset(
+        #         config.path,
+        #         split="val",
+        #         downsample_factor=config.dataset.downsample_factor,
+        #     )
+        case "zipnerf_fisheye":
+            train_dataset = ZipnerfFisheyeDataset(
+                config.path,
+                split="train",
+                ray_jitter=ray_jitter,
+                downsample_factor=config.dataset.downsample_factor,
+            )
+            val_dataset = ZipnerfFisheyeDataset(
+                config.path,
+                split="val",
+                downsample_factor=config.dataset.downsample_factor,
             )
         case _:
             raise ValueError(

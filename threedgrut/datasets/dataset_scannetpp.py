@@ -26,7 +26,7 @@ class ScannetppDataset(ColmapDataset):
 
     def load_intrinsics_and_extrinsics(self):
         cameras_extrinsic_file = os.path.join(self.path, "colmap", "images.txt")
-        cameras_intrinsic_file = os.path.join(self.path, "colmap", "cameras.txt")
+        cameras_intrinsic_file = os.path.join(self.path, "colmap", "cameras_equidist.txt")
         self.cam_extrinsics = read_colmap_extrinsics_text(cameras_extrinsic_file)
         self.cam_intrinsics = read_colmap_intrinsics_text(cameras_intrinsic_file)
 
