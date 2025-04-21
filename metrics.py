@@ -36,7 +36,7 @@ def readImages(renders_dir, gt_dir, renders_list, start, end):
         image_names.append(fname)
     return renders, gts, image_names
 
-def evaluate(model_paths, use_remap=False, iters=None, custom_gt=None):
+def evaluate(model_paths, use_remap=False, iters=None, custom_gt=None, cross_camera=False):
 
     full_dict = {}
     per_view_dict = {}
@@ -68,6 +68,9 @@ def evaluate(model_paths, use_remap=False, iters=None, custom_gt=None):
             method_dir = test_dir / method
             gt_dir = method_dir/ "gt"
             renders_dir = method_dir / "renders"
+            if cross_camera:
+                gt_dir = gt_dir.with_name(gt_dir.name + "_cross_camera")
+                renders_dir = renders_dir.with_name(renders_dir.name + "_cross_camera")   
             if use_remap:
                 print("Remapped back to original space.")
                 gt_dir = gt_dir.with_name(gt_dir.name + "_remap")
@@ -104,10 +107,16 @@ def evaluate(model_paths, use_remap=False, iters=None, custom_gt=None):
                                                         "PSNR": {name: psnr for psnr, name in zip(torch.tensor(psnrs).tolist(), image_namess)},
                                                         "LPIPS": {name: lp for lp, name in zip(torch.tensor(lpipss).tolist(), image_namess)}})
 
-        with open(scene_dir + "/results.json", 'w') as fp:
-            json.dump(full_dict[scene_dir], fp, indent=True)
-        with open(scene_dir + "/per_view.json", 'w') as fp:
-            json.dump(per_view_dict[scene_dir], fp, indent=True)
+        if cross_camera:
+            with open(scene_dir + "/results_cross_camera.json", 'w') as fp:
+                json.dump(full_dict[scene_dir], fp, indent=True)
+            with open(scene_dir + "/per_view_cross_camera.json", 'w') as fp:
+                json.dump(per_view_dict[scene_dir], fp, indent=True)
+        else:
+            with open(scene_dir + "/results.json", 'w') as fp:
+                json.dump(full_dict[scene_dir], fp, indent=True)
+            with open(scene_dir + "/per_view.json", 'w') as fp:
+                json.dump(per_view_dict[scene_dir], fp, indent=True)
         # except:
         #     print("Unable to compute metrics for model", scene_dir)
 
@@ -121,5 +130,6 @@ if __name__ == "__main__":
     parser.add_argument('--use_remap', action='store_true')
     parser.add_argument('--iters', type=int, default = None)
     parser.add_argument('--custom_gt', type=str, default=None)
+    parser.add_argument('--cross_camera', '-c', action='store_true')
     args = parser.parse_args()
-    evaluate(args.model_paths, args.use_remap, args.iters, args.custom_gt)
+    evaluate(args.model_paths, args.use_remap, args.iters, args.custom_gt, args.cross_camera)

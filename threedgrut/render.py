@@ -31,7 +31,7 @@ from threedgrut.utils.misc import create_summary_writer
 
 class Renderer:
     def __init__(
-        self, model, conf, global_step, out_dir, path="", save_gt=True, writer=None, compute_extra_metrics=True
+        self, model, conf, global_step, out_dir, path="", save_gt=True, writer=None, compute_extra_metrics=True, cross_camera=False, downsample_factor=None
     ) -> None:
 
         if path:  # Replace the path to the test data
@@ -43,9 +43,10 @@ class Renderer:
         self.path = path
         self.conf = conf
         self.global_step = global_step
-        self.dataset, self.dataloader = self.create_test_dataloader(conf)
+        self.dataset, self.dataloader = self.create_test_dataloader(conf, cross_camera, downsample_factor)
         self.writer = writer
         self.compute_extra_metrics = compute_extra_metrics
+        self.cross_camera = cross_camera
 
         if conf.model.background.color == "black":
             self.bg_color = torch.zeros((3,), dtype=torch.float32, device="cuda")
@@ -54,8 +55,10 @@ class Renderer:
         else:
             assert False, f"{conf.model.background.color} is not a supported background color."
 
-    def create_test_dataloader(self, conf):
+    def create_test_dataloader(self, conf, cross_camera=False, downsample_factor=None):
         """Create the test dataloader for the given configuration."""
+        if downsample_factor is not None: # overrde when necessuary
+            conf.dataset.downsample_factor = downsample_factor
 
         match conf.dataset.type:
             case "nerf":
@@ -67,7 +70,9 @@ class Renderer:
             case "scannetpp":
                 dataset = ScannetppDataset(conf.path, split="val")
             case "zipnerf_fisheye":
-                dataset = ZipnerfFisheyeDataset(conf.path, split="val", downsample_factor=conf.dataset.downsample_factor)
+                if cross_camera:
+                    conf.path = conf.path.replace("fisheye", "undistorted")
+                dataset = ZipnerfFisheyeDataset(conf.path, split="val", downsample_factor=conf.dataset.downsample_factor, cross_camera=cross_camera)
             case _:
                 raise ValueError(
                     f'Unsupported dataset type: {conf.dataset.type}. Choose between: ["colmap", "nerf", "scannetpp", "zipnerf_fisheye"].'
@@ -78,7 +83,7 @@ class Renderer:
 
     @classmethod
     def from_checkpoint(
-        cls, checkpoint_path, out_dir, path="", save_gt=True, writer=None, model=None, computes_extra_metrics=True
+        cls, checkpoint_path, out_dir, path="", save_gt=True, writer=None, model=None, computes_extra_metrics=True, cross_camera=False, downsample_factor=None
     ):
         """Loads checkpoint for test path.
         If path is stated, it will override the test path in checkpoint.
@@ -95,8 +100,11 @@ class Renderer:
             conf["render"]["min_transmittance"] = 0.03
         conf["render"]["enable_kernel_timings"] = True
 
-        object_name = Path(conf.path).stem
-        experiment_name = conf["experiment_name"]
+        # Comment out orignal path, which is highly redundant
+        # object_name = Path(conf.path).stem
+        # experiment_name = conf["experiment_name"]
+        object_name = ""
+        experiment_name = None
         writer, out_dir, run_name = create_summary_writer(conf, object_name, out_dir, experiment_name, use_wandb=False)
 
         if model is None:
@@ -115,6 +123,8 @@ class Renderer:
             save_gt=save_gt,
             writer=writer,
             compute_extra_metrics=computes_extra_metrics,
+            cross_camera=cross_camera,
+            downsample_factor = downsample_factor
         )
 
     @classmethod
@@ -152,10 +162,14 @@ class Renderer:
             }
 
         output_path_renders = os.path.join(self.out_dir, f"ours_{int(self.global_step)}", "renders")
+        if self.cross_camera:
+            output_path_renders = os.path.join(self.out_dir, f"ours_{int(self.global_step)}", "renders_cross_camera")
         os.makedirs(output_path_renders, exist_ok=True)
 
         if self.save_gt:
             output_path_gt = os.path.join(self.out_dir, f"ours_{int(self.global_step)}", "gt")
+            if self.cross_camera:
+                output_path_gt = os.path.join(self.out_dir, f"ours_{int(self.global_step)}", "gt_cross_camera")
             os.makedirs(output_path_gt, exist_ok=True)
 
         psnr = []

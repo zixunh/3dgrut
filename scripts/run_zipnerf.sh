@@ -1,4 +1,4 @@
-SCENE_IDS="berlin london nyc"
+SCENE_IDS="alameda berlin london nyc"
 
 for SCENE_ID in $SCENE_IDS; do
     echo "Processing scene: $SCENE_ID"

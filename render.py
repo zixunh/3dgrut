@@ -24,6 +24,8 @@ if __name__ == "__main__":
     parser.add_argument("--out-dir", required=True, type=str, help="Output path")
     parser.add_argument("--save-gt", action="store_false", help="If set, the GT images will not be saved [True by default]")
     parser.add_argument("--compute-extra-metrics", action="store_false", help="If set, extra image metrics will not be computed [True by default]")
+    parser.add_argument("--cross-camera", action="store_true", help="if set, zipnerf can render pinhole from fisheye trained model or vice versa")
+    parser.add_argument("--downsample-factor", type=int, default=None, help="Downsample factor for the rendered images [1 by default]")
     args = parser.parse_args()
 
     renderer = Renderer.from_checkpoint(
@@ -31,6 +33,9 @@ if __name__ == "__main__":
                         path=args.path,
                         out_dir=args.out_dir,
                         save_gt=args.save_gt,
-                        computes_extra_metrics=args.compute_extra_metrics)
+                        computes_extra_metrics=args.compute_extra_metrics,
+                        cross_camera=args.cross_camera,
+                        downsample_factor=args.downsample_factor,
+                        )
 
     renderer.render_all()

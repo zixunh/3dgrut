@@ -46,12 +46,13 @@ from .camera_models import (
 
 
 class ColmapDataset(Dataset, BoundedMultiViewDataset, DatasetVisualization):
-    def __init__(self, path, device="cuda", split="train", downsample_factor=1, ray_jitter=None):
+    def __init__(self, path, device="cuda", split="train", downsample_factor=1, ray_jitter=None, cross_camera=False):
         self.path = path
         self.device = device
         self.split = split
         self.downsample_factor = downsample_factor
         self.ray_jitter = ray_jitter
+        self.cross_camera = cross_camera
 
         # GPU cache of processed camera intrinsics
         self.intrinsics = {}
@@ -97,6 +98,12 @@ class ColmapDataset(Dataset, BoundedMultiViewDataset, DatasetVisualization):
         self.image_w = 0
         self.n_frames = len(self.cam_extrinsics)
         image_path = os.path.join(self.path, self.get_images_folder(), os.path.basename(self.cam_extrinsics[0].name))
+        if self.cross_camera:
+            image_name = os.path.basename(image_path)
+            if 'indoor_' not in image_name:
+                image_path = image_path.replace(image_name, 'indoor_' + image_name)
+            else:
+                image_path = image_path.replace('indoor_', '')
         if not os.path.exists(image_path):
             if ".JPG" in image_path:
                 image_path = image_path.replace(".JPG", ".png")
@@ -201,11 +208,17 @@ class ColmapDataset(Dataset, BoundedMultiViewDataset, DatasetVisualization):
         cam_centers = []
         for extr in logger.track(self.cam_extrinsics, description=f"Load Dataset ({self.split})", color="salmon1"):
             image_path = os.path.join(self.path, self.get_images_folder(), os.path.basename(extr.name))
+            if self.cross_camera:
+                image_name = os.path.basename(image_path)
+                if 'indoor_' not in image_name:
+                    image_path = image_path.replace(image_name, 'indoor_' + image_name)
+                else:
+                    image_path = image_path.replace('indoor_', '')
             if not os.path.exists(image_path):
                 if ".JPG" in image_path:
                     image_path = image_path.replace(".JPG", ".png")
                 elif ".png" in image_path:
-                    image_path = image_path.replace(".png", ".JPG")
+                    image_path = image_path.replace(".png", ".JPG")        
             if not os.path.exists(image_path):
                 print(f"Image file {image_path} does not exist.")
                 continue

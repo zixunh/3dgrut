@@ -39,20 +39,29 @@ from .utils import read_colmap_extrinsics_binary, read_colmap_intrinsics_binary
 
 class ZipnerfFisheyeDataset(ColmapDataset):
 
-    def __init__(self, path, device="cuda", split="train", downsample_factor=1, ray_jitter=None):
-        super(ZipnerfFisheyeDataset, self).__init__(path, device, split, downsample_factor, ray_jitter)
+    def __init__(self, path, device="cuda", split="train", downsample_factor=1, ray_jitter=None, cross_camera=False):
+        super(ZipnerfFisheyeDataset, self).__init__(path, device, split, downsample_factor, ray_jitter, cross_camera)
 
     def load_intrinsics_and_extrinsics(self):
         cameras_extrinsic_file = os.path.join(self.path, "sparse", "0", "images.bin")
         cameras_intrinsic_file = os.path.join(self.path, "sparse", "0", "cameras.bin")
+        if self.cross_camera: # only for zipnerf case
+            if 'undistorted' in cameras_extrinsic_file:
+                cameras_extrinsic_file = cameras_extrinsic_file.replace('undistorted', 'fisheye')
+            elif 'fisheye' in cameras_extrinsic_file:
+                cameras_extrinsic_file = cameras_extrinsic_file.replace('fisheye', 'undistorted')
         self.cam_extrinsics = read_colmap_extrinsics_binary(cameras_extrinsic_file)
         self.cam_intrinsics = read_colmap_intrinsics_binary(cameras_intrinsic_file)
 
-        # Remove camera distortions because images are already undistorted
-        for intr in self.cam_intrinsics:
-            intr.params[4:] = 0.0
+        if 'fisheye' in cameras_extrinsic_file:
+            # Remove camera distortions because images are already undistorted
+            for intr in self.cam_intrinsics:
+                intr.params[4:] = 0.0
 
     def get_images_folder(self):
         downsample_suffix = "" if self.downsample_factor == 1 else f"_{self.downsample_factor}"
         # return "image_undistorted_fisheye"
-        return f"images{downsample_suffix}_equidist"
+        if not self.cross_camera:
+            return f"images{downsample_suffix}_equidist"
+        else:
+            return f"images{downsample_suffix}"
